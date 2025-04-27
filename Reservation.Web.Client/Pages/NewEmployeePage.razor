@@ -1,0 +1,137 @@
+@page "/ucet/zamestnanci/vytvorit"
+@using System.Net
+@using Microsoft.AspNetCore.Authorization
+@using Reservation.Shared.Authorization
+@using Reservation.Shared.Common
+@using Reservation.Web.Client.Components
+@inject IEmployeeService EmployeeService
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+
+<PageTitle>Nový pracovník</PageTitle>
+@attribute [Authorize(Roles = nameof(Role.Admin))]
+
+<MudCard Class="mx-auto mt-12" Style="max-width:600px;" Elevation="4">
+  <MudButton class="mt-2 mx-2" Style="width: fit-content;" Variant="Variant.Outlined"
+             Color="Color.Primary"
+             OnClick="@(() => NavigationManager.NavigateTo("/ucet/zamestnanci"))"
+             StartIcon="@Icons.Material.Filled.ArrowBack">
+    Zpět
+  </MudButton>
+  <MudCardHeader>
+    <MudText Typo="Typo.h5">Nový pracovník</MudText>
+  </MudCardHeader>
+  <MudDivider/>
+  <EditForm Model="@NewEmployee" OnValidSubmit="@CreateEmployee">
+    <DataAnnotationsValidator/>
+    <MudCardContent>
+      <ValidationSummary/>
+      <MudGrid>
+        <MudItem xs="12" sm="6">
+          <MudTextField T="string"
+                        Label="Jméno"
+                        @bind-Value="NewEmployee.FirstName"
+                        Required="true"
+                        Variant="Variant.Outlined"
+                        FullWidth="true"
+                        Adornment="Adornment.Start"/>
+        </MudItem>
+        <MudItem xs="12" sm="6">
+          <MudTextField T="string"
+                        Label="Příjmení"
+                        @bind-Value="NewEmployee.LastName"
+                        Required="true"
+                        Variant="Variant.Outlined"
+                        FullWidth="true"
+                        Adornment="Adornment.Start"/>
+        </MudItem>
+        <MudItem xs="12" sm="6">
+          <EmailInput @bind-Value="NewEmployee.Email"
+                      Label="Email"
+                      Required="true"
+                      Variant="Variant.Outlined"
+                      FullWidth="true"
+                      Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Email"/>
+        </MudItem>
+        <MudItem xs="12" sm="6">
+          <MudTextField T="string"
+                        InputType="InputType.Password"
+                        Label="Heslo"
+                        @bind-Value="NewEmployee.Password"
+                        Required="true"
+                        Variant="Variant.Outlined"
+                        FullWidth="true"
+                        Adornment="Adornment.Start"
+                        AdornmentIcon="@Icons.Material.Filled.Lock"/>
+          <MudText Typo="Typo.caption" Color="Color.Secondary">
+            Po přihlášení lze heslo změnit
+          </MudText>
+        </MudItem>
+        <MudItem xs="12">
+          <MudSelect T="Role"
+                     Label="Pozice"
+                     @bind-Value="NewEmployee.Role"
+                     Required="true"
+                     Variant="Variant.Outlined"
+                     FullWidth="true"
+                     Adornment="Adornment.Start"
+                     AdornmentIcon="@Icons.Material.Filled.Work">
+            @foreach (var role in Constants.RoleInfo.GetAll())
+            {
+              <MudSelectItem Value="@role.Key">
+                @role.Value.DisplayName &ndash; @role.Value.Description
+              </MudSelectItem>
+            }
+          </MudSelect>
+        </MudItem>
+      </MudGrid>
+    </MudCardContent>
+
+    <MudDivider/>
+    <MudCardActions Class="justify-end">
+      <MudButton ButtonType="ButtonType.Submit"
+                 Variant="Variant.Filled"
+                 Color="Color.Primary"
+                 Class="px-6">
+        Vytvořit
+      </MudButton>
+    </MudCardActions>
+  </EditForm>
+</MudCard>
+
+@code {
+  EmployeeCreateRequest NewEmployee { get; set; } = new();
+
+  private async Task CreateEmployee()
+  {
+    if (!Utils.IsPasswordLongEnough(NewEmployee.Password))
+    {
+      Snackbar.Add("Heslo musí mít alespoň 6 znaků.", Severity.Error);
+      return;
+    }
+    
+    if (!Utils.TryProcessEmail(NewEmployee.Email, out string email))
+    {
+      Snackbar.Add("Neplatný formát emailu.", Severity.Error);
+      return;
+    }
+
+    NewEmployee.Email = email;
+    
+    var response = await EmployeeService.CreateEmployee(NewEmployee);
+    if (response.IsSuccess)
+    {
+      Snackbar.Add("Zaměstnanec byl úspěšně vytvořen.", Severity.Success);
+      NavigationManager.NavigateTo("/ucet/zamestnanci");
+    }
+    else if (response.StatusCode == HttpStatusCode.Conflict)
+    {
+      Snackbar.Add("Zaměstnanec s tímto emailem již existuje.", Severity.Error);
+    }
+    else
+    {
+      Snackbar.Add("Nepodařilo se vytvořit zaměstnance.", Severity.Error);
+    }
+  }
+}

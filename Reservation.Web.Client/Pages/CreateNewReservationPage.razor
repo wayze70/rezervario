@@ -1,0 +1,286 @@
+@inject IReservationService ReservationService
+@inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
+
+@page "/ucet/nova-udalost"
+@using System.Globalization
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+
+<MudCard Class="mx-auto mt-12" Style="max-width:800px;" Elevation="4">
+    <MudButton Class="m-2" Style="width: fit-content" Variant="Variant.Outlined" Color="Color.Primary" OnClick="Back"
+               StartIcon="@Icons.Material.Filled.ArrowBack">
+        Zpět
+    </MudButton>
+    <MudCardHeader>
+        <MudText Typo="Typo.h4">Vytvořit událost</MudText>
+    </MudCardHeader>
+    <MudDivider/>
+    <MudCardContent>
+        <EditForm Model="@NewReservation" OnValidSubmit="@OnSubmit">
+            <DataAnnotationsValidator/>
+            <ValidationSummary/>
+            <MudGrid>
+                <MudItem xs="12" sm="6">
+                    <MudTextField Label="Nadpis" @bind-Value="NewReservation.Title"
+                                  Required="true" Variant="Variant.Outlined" FullWidth="true"/>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField Label="Popis" @bind-Value="NewReservation.Description"
+                                  Variant="Variant.Outlined" FullWidth="true"/>
+                </MudItem>
+
+                <MudItem xs="12" sm="4">
+                    <MudNumericField T="int" Label="Max. kapacita"
+                                     @bind-Value="NewReservation.Capacity"
+                                     Min="0" Required="true"
+                                     Variant="Variant.Outlined" FullWidth="true"/>
+                </MudItem>
+                <MudItem xs="12">
+                    <MudText Typo="Typo.subtitle2" Class="mb-1">
+                        <MudIcon Icon="@Icons.Material.Filled.CalendarMonth" Class="me-1"/>
+                        Vyberte datum(y)
+                    </MudText>
+                    <MudDatePicker id="new-reservation"
+                                   PickerVariant="PickerVariant.Static"
+                                   MinDate="DateTime.Today"
+                                   Date="@(null)"
+                                   AutoClose="false"
+                                   AdditionalDateClassesFunc="GetAdditionalDateClasses"
+                                   DateChanged="ToggleDateSelection"/>
+                    @if (!SelectedDates.Any())
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Error">
+                            Vyberte alespoň jedno datum.
+                        </MudText>
+                    }
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudText Typo="Typo.subtitle2" Class="mb-1">
+                        <MudIcon Icon="@Icons.Material.Filled.Schedule" Class="me-1"/>
+                        Čas začátku
+                    </MudText>
+                    <MudTimePicker Label="Začátek"
+                                   @bind-Time="StartTime"
+                                   AmPm="@(!CultureInfo.CurrentCulture.Is24Hrs())"
+                                   Required="true" Variant="Variant.Outlined"/>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudText Typo="Typo.subtitle2" Class="mb-1">
+                        <MudIcon Icon="@Icons.Material.Filled.Schedule" Class="me-1"/>
+                        Čas konce
+                    </MudText>
+                    <MudTimePicker Label="Konec"
+                                   @bind-Time="EndTime"
+                                   AmPm="@(!CultureInfo.CurrentCulture.Is24Hrs())"
+                                   Required="true" Variant="Variant.Outlined"/>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="string" Label="Časové pásmo"
+                               @bind-Value="NewReservation.CustomTimeZoneId"
+                               Required="true" Variant="Variant.Outlined" FullWidth="true">
+                        @foreach (var timezone in Constants.TimeZones)
+                        {
+                            <MudSelectItem Value="@timezone.Id">
+                                @timezone.ToString()
+                            </MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudDivider/>
+                <MudItem xs="12">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                        <MudText Typo="Typo.subtitle2">
+                            <MudIcon Icon="@Icons.Material.Filled.Cancel" Class="me-1"/>
+                            Čas pro zrušení rezervace
+                        </MudText>
+                        <MudTooltip Text="Počet dní a hodin před začátkem, do kdy lze rezervaci stornovat."
+                                    ShowOnClick="true">
+                            <MudIcon Icon="@Icons.Material.Filled.Info" Color="Color.Primary" Size="Size.Small"/>
+                        </MudTooltip>
+                    </MudStack>
+                </MudItem>
+                <MudItem xs="6" sm="3">
+                    <MudNumericField T="int" Label="Dny"
+                                     @bind-Value="CancellationOffsetDays"
+                                     Min="0" Variant="Variant.Outlined" FullWidth="true"
+                                     Adornment="Adornment.Start"
+                                     AdornmentIcon="@Icons.Material.Filled.DateRange"/>
+                </MudItem>
+                <MudItem xs="6" sm="3">
+                    <MudNumericField T="int"
+                                     Label="Hodiny"
+                                     @bind-Value="CancellationOffsetHours"
+                                     Min="0"
+                                     Max="23"
+                                     Variant="Variant.Outlined"
+                                     FullWidth="true"
+                                     Adornment="Adornment.End"
+                                     AdornmentText="h"/>
+                </MudItem>
+                <MudItem xs="6" sm="3">
+                    <MudNumericField T="int"
+                                     Label="Minuty"
+                                     @bind-Value="CancellationOffsetMinutes"
+                                     Min="0"
+                                     Max="59"
+                                     Variant="Variant.Outlined"
+                                     FullWidth="true"
+                                     Adornment="Adornment.End"
+                                     AdornmentText="m"/>
+                </MudItem>
+                <MudDivider/>
+                <MudItem xs="12" sm="6" Class="d-flex align-center">
+                    <MudSwitch Class="me-1" Label="@(NewReservation.IsAvailable ? "Dostupná" : "Nedostupné")" Color="Color.Primary"
+                               @bind-Value="NewReservation.IsAvailable"/>
+                    <MudTooltip Text="Bude okamžitě po vytvoření dostupná pro veřejnost"
+                                 ShowOnClick="true">
+                        <MudIcon Icon="@Icons.Material.Filled.Info" Color="Color.Primary" Size="Size.Small"/>
+                    </MudTooltip>
+                </MudItem>
+            </MudGrid>
+        </EditForm>
+    </MudCardContent>
+    <MudDivider/>
+    <MudCardActions Class="justify-end px-6 pb-4 gap-2">
+        <MudButton Variant="Variant.Outlined" Color="Color.Secondary" OnClick="Back">Zpět</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   OnClick="OnSubmit"
+                   Disabled="@(IsSubmitting || !SelectedDates.Any())">
+            @if (IsSubmitting)
+            {
+                <MudProgressCircular Size="Size.Small" Color="Color.Inherit"/>
+                <span class="ms-2">Odesílání…</span>
+            }
+            else
+            {
+                @(SelectedDates.Count > 1
+                    ? $"Vytvořit události ({SelectedDates.Count})"
+                    : "Vytvořit událost")
+            }
+        </MudButton>
+    </MudCardActions>
+</MudCard>
+
+@code {
+
+    ReservationCreateRequest NewReservation { get; set; } = new ReservationCreateRequest()
+    {
+        IsAvailable = true
+    };
+
+    TimeSpan? StartTime { get; set; }
+    TimeSpan? EndTime { get; set; }
+    List<DateTime> SelectedDates { get; set; } = [];
+    bool IsSubmitting { get; set; } = false;
+
+    int CancellationOffsetDays { get; set; } = 0;
+    int CancellationOffsetHours { get; set; }
+    int CancellationOffsetMinutes { get; set; }
+
+
+    protected override void OnInitialized()
+    {
+        var timeZone = TimeZoneInfo.Local;
+        NewReservation.CustomTimeZoneId = Constants.TimeZones.First(x => x.Id == timeZone.Id).Id;
+    }
+
+    async Task OnSubmit()
+    {
+        if (IsSubmitting)
+            return;
+
+        IsSubmitting = true;
+        try
+        {
+            NewReservation.CancellationOffset = TimeSpan.FromDays(CancellationOffsetDays)
+                                                + TimeSpan.FromHours(CancellationOffsetHours)
+                                                + TimeSpan.FromMinutes(CancellationOffsetMinutes);
+
+            if (SelectedDates.Count <= 0)
+            {
+                Snackbar.Add("Vyberte alespoň jedno datum.", Severity.Warning);
+                return;
+            }
+
+            if (StartTime is null || EndTime is null)
+            {
+                Snackbar.Add("Vyberte čas začátku a konce události.", Severity.Warning);
+                return;
+            }
+
+            var reservations = new List<ReservationCreateRequest>();
+
+            if (EndTime < StartTime)
+            {
+                EndTime = EndTime.Value.Add(TimeSpan.FromDays(1));
+            }
+
+            foreach (var date in SelectedDates)
+            {
+                var customTimeZone = TimeZoneInfo.FindSystemTimeZoneById(NewReservation.CustomTimeZoneId);
+                var startLocal = date.Date.Add(StartTime.Value);
+                var endLocal = date.Date.Add(EndTime.Value);
+                if (endLocal <= startLocal)
+                {
+                    endLocal = endLocal.AddDays(1);
+                }
+
+                reservations.Add(new ReservationCreateRequest
+                {
+                    Title = NewReservation.Title,
+                    Description = NewReservation.Description,
+                    Capacity = NewReservation.Capacity,
+                    Start = TimeZoneInfo.ConvertTimeToUtc(startLocal, customTimeZone),
+                    End = TimeZoneInfo.ConvertTimeToUtc(endLocal, customTimeZone),
+                    IsAvailable = NewReservation.IsAvailable,
+                    CustomTimeZoneId = NewReservation.CustomTimeZoneId,
+                    CancellationOffset = NewReservation.CancellationOffset
+                });
+            }
+
+            var response = await ReservationService.CreateAsync(reservations);
+
+            if (response.IsSuccess)
+            {
+                Snackbar.Add("Události byly úspěšně vytvořeny.", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("Nepodařilo se vytvořit události.", Severity.Error);
+            }
+        }
+        finally
+        {
+            IsSubmitting = false;
+        }
+    }
+
+    private void ToggleDateSelection(DateTime? date)
+    {
+        if (!date.HasValue)
+        {
+            return;
+        }
+
+        if (SelectedDates.Any(d => d.Date == date.Value.Date))
+        {
+            SelectedDates.RemoveAll(d => d.Date == date.Value.Date);
+        }
+        else
+        {
+            SelectedDates.Add((DateTime)date);
+        }
+    }
+
+    private string GetAdditionalDateClasses(DateTime date)
+    {
+        return SelectedDates.Any(d => d.Date == date.Date) ? "selected-date" : string.Empty;
+    }
+
+    private void Back()
+    {
+        NavigationManager.NavigateTo(Constants.Routes.AccountRoute.AccountReservation);
+    }
+
+}

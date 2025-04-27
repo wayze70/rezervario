@@ -1,0 +1,171 @@
+@page "/rezervace/{Path}"
+@inject IReservationService ReservationService
+@inject IAccountService AccountService
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+@inject GlobalState GlobalState
+
+<PageTitle>@GlobalState.Title</PageTitle>
+
+<MudGrid>
+
+    <MudItem xs="12" sm="6" md="4">
+        <MudPaper Class="pa-6" Elevation="4" Style="overflow-y: hidden;">
+            <MudStack Spacing="2">
+                <MudStack Spacing="1">
+                    <MudText Typo="Typo.subtitle1">@Description</MudText>
+
+                </MudStack>
+                <MudDatePicker @ref="_picker"
+                               PickerVariant="PickerVariant.Static"
+                               @bind-Date="GlobalState.SelectedDate"
+                               AdditionalDateClassesFunc="GetAdditionalDateClasses"
+                               IsDateDisabledFunc="DisableDateWithoutRecords"
+                               Label="Vyberte datum"
+                               MinDate="DateTime.Today"
+                               Style="overflow-y: hidden;"/>
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           FullWidth="true"
+                           OnClick="Nearest">
+                    Nejbližší událost
+                </MudButton>
+            </MudStack>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" sm="6" md="8">
+        @if (Reservations is null)
+        {
+            <MudText Typo="Typo.subtitle1" Align="Align.Center" Class="mt-2">Načítám událost…</MudText>
+        }
+        else if (Reservations.Count == 0)
+        {
+            <MudText Typo="Typo.subtitle1" Align="Align.Center" Class="mt-2">Nebyly nalezeny žádné události.</MudText>
+        }
+        else if (!Reservations.Any(r =>
+                         !GlobalState.SelectedDate.HasValue || r.Start.ToLocalTime().Date == GlobalState.SelectedDate.Value.Date))
+        {
+            <MudText Typo="Typo.subtitle1" Align="Align.Center" Class="mt-2">Žádné události pro vybrané datum.
+            </MudText>
+        }
+        else
+        {
+            <MudGrid>
+                @foreach (var reservation in Reservations)
+                {
+                    if (!reservation.IsAvailable || reservation.CurrentCapacity >= reservation.Capacity)
+                    {
+                        continue;
+                    }
+
+                    @if (GlobalState.SelectedDate.HasValue &&
+                         GlobalState.SelectedDate.Value.Date != reservation.Start.ToLocalTime().Date)
+                    {
+                        continue;
+                    }
+
+                    <MudItem xs="12" sm="12" md="6" lg="4">
+                        <MudCard Elevation="2">
+                            <MudCardContent>
+                                <MudText Typo="Typo.h6">@reservation.Title</MudText>
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="me-1">
+                                    <MudIcon Icon="@Icons.Material.Filled.Schedule"/>
+                                    <MudText>
+                                        @reservation.Start.ToLocalTime().ToShortTimeString() – @reservation.End.ToLocalTime().ToShortTimeString()
+                                    </MudText>
+                                </MudStack>
+                                <MudText>
+                                    <MudIcon Icon="@Icons.Material.Rounded.EventSeat" Class="me-1"/>
+                                    @(reservation.Capacity - reservation.CurrentCapacity)
+                                </MudText>
+                            </MudCardContent>
+                            <MudCardActions>
+                                <MudButton Variant="Variant.Outlined"
+                                           Color="Color.Primary"
+                                           OnClick='() => NavigationManager.NavigateTo(Constants.Routes.ReservationDetail(Path, reservation.Id))'>
+                                    Více informací
+                                </MudButton>
+                            </MudCardActions>
+                        </MudCard>
+                    </MudItem>
+                }
+            </MudGrid>
+        }
+    </MudItem>
+</MudGrid>
+
+@code {
+
+    [Parameter]
+    public string Path { get; set; } = string.Empty;
+
+    private MudDatePicker _picker = null!;
+    List<ReservationResponse>? Reservations { get; set; }
+    string Description { get; set; } = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var accountInfo = await AccountService.GetAccountDescription(Path);
+
+        if (accountInfo is { IsSuccess: true, Data: not null })
+        {
+            GlobalState.Title = accountInfo.Data.Organization;
+            Description = accountInfo.Data.Description;
+        }
+
+        var response = await ReservationService.GetActiveReservationsAsync(Path);
+        if (response.IsSuccess)
+        {
+            // Zde necháme data v UTC pro porovnávání
+            Reservations = (response.Data ?? [])
+                .OrderBy(r => r.Start)
+                .ToList();
+            // Pro GlobalState použijeme lokální čas
+            GlobalState.SelectedDate = Reservations.FirstOrDefault()?.Start.ToLocalTime().Date;
+        }
+        else
+        {
+            Snackbar.Add("Nesprávná adresa událostí.", Severity.Error);
+        }
+    }
+
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _picker.GoToDate();
+        }
+    }
+
+    private string GetAdditionalDateClasses(DateTime date)
+    {
+        if (Reservations != null && Reservations.Any(r =>
+                r.Start.ToLocalTime().Date == date.Date &&
+                r.IsAvailable &&
+                r.Start >= DateTime.UtcNow)) // Porovnání s UTC časem
+        {
+            return "reservation-highlight";
+        }
+
+        return "reservation-empty";
+    }
+
+
+    private void Nearest()
+    {
+        GlobalState.SelectedDate = Reservations?.FirstOrDefault()?.Start.ToLocalTime().Date;
+    }
+
+    private bool DisableDateWithoutRecords(DateTime date)
+    {
+        if (Reservations == null)
+            return true;
+
+        return Reservations.All(r =>
+            r.Start.ToLocalTime().Date != date.Date || // Není událost v tento den
+            r.Start <= DateTime.UtcNow); // Nebo již proběhla (kontrola v UTC)
+    }
+
+}

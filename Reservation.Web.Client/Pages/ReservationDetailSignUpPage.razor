@@ -1,0 +1,114 @@
+@page "/rezervace/{Path}/{ReservationId:int}/prihlaseni"
+@using System.Net
+@using Reservation.Web.Client.Components
+@inject IReservationService ReservationService
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+
+<PageTitle>Přihlášení k události</PageTitle>
+
+<MudCard Class="mx-auto mt-12" Style="max-width:480px;" Elevation="4">
+    <MudButton Class="m-2" Style="width: fit-content" Variant="Variant.Outlined" Color="Color.Primary" OnClick="Back"
+               StartIcon="@Icons.Material.Filled.ArrowBack">
+        Zpět
+    </MudButton>
+    <MudCardHeader>
+        <MudText Typo="Typo.h5">Přihlášení k rezervaci</MudText>
+    </MudCardHeader>
+    <MudDivider/>
+    <EditForm Model="@SignUpRequest" OnValidSubmit="OnSubmit">
+        <DataAnnotationsValidator/>
+        <MudCardContent>
+            <ValidationSummary Class="mb-4"/>
+
+            <MudGrid>
+                <MudItem xs="12" sm="6">
+                    <MudTextField T="string"
+                                  Label="Jméno"
+                                  @bind-Value="SignUpRequest.FirstName"
+                                  Required="true"
+                                  Variant="Variant.Outlined"
+                                  FullWidth="true"
+                                  Adornment="Adornment.Start"/>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField T="string"
+                                  Label="Příjmení"
+                                  @bind-Value="SignUpRequest.LastName"
+                                  Required="true"
+                                  Variant="Variant.Outlined"
+                                  FullWidth="true"
+                                  Adornment="Adornment.Start"/>
+                </MudItem>
+                <MudItem xs="12">
+                    <EmailInput
+                        @bind-Value="SignUpRequest.Email"
+                        Required="true"
+                        Variant="Variant.Outlined"
+                        FullWidth="true"
+                        Adornment="Adornment.Start"
+                        AdornmentIcon="@Icons.Material.Filled.Email"/>
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField T="string"
+                                  Label="Poznámka"
+                                  @bind-Value="SignUpRequest.Note"
+                                  Variant="Variant.Outlined"
+                                  FullWidth="true"
+                                  Lines="3"
+                                  AutoFocus="true"
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.EditNote"/>
+                </MudItem>
+            </MudGrid>
+        </MudCardContent>
+        <MudDivider/>
+        <MudCardActions Class="justify-end">
+            <MudButton ButtonType="ButtonType.Submit"
+                       Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       Class="px-6">
+                Rezervovat
+            </MudButton>
+        </MudCardActions>
+    </EditForm>
+</MudCard>
+
+@code {
+
+    [Parameter]
+    public int ReservationId { get; set; }
+
+    [Parameter, EditorRequired]
+    public string Path { get; set; } = string.Empty;
+
+    ReservationSignUpRequest SignUpRequest { get; set; } = new ReservationSignUpRequest();
+
+    private async Task OnSubmit()
+    {
+        var response = await ReservationService.SignInToReservation(ReservationId, SignUpRequest);
+
+        if (response.IsSuccess)
+        {
+            Snackbar.Add("Úspěšně jste se rezervovali k události", Severity.Success);
+            NavigationManager.NavigateTo(Constants.Routes.ReservationDetail(Path, ReservationId));
+        }
+        else if (response.StatusCode == HttpStatusCode.BadRequest)
+        {
+            Snackbar.Add("Omlouváme se, ale událost je již plná", Severity.Warning);
+        }
+        else if (response.StatusCode == HttpStatusCode.Conflict)
+        {
+            Snackbar.Add("Uživatel je již přihlášen na této události", Severity.Warning);
+        }
+        else
+        {
+            Snackbar.Add($"Chyba při přihlašování", Severity.Error);
+        }
+    }
+
+    private void Back()
+    {
+        NavigationManager.NavigateTo(Constants.Routes.ReservationDetail(Path, ReservationId));
+    }
+}

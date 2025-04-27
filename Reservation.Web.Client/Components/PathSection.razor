@@ -1,0 +1,158 @@
+@using Microsoft.AspNetCore.Authorization
+@using Reservation.Shared.Authorization
+@using Reservation.Shared.Common
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+@inject IAccountService AccountService
+@inject GlobalState GlobalState
+
+@attribute [Authorize(Roles = nameof(Role.Admin))]
+
+<MudButton Href="@Constants.Routes.Reservation(GlobalState.Identifier)"
+           Variant="Variant.Outlined"
+           Color="Color.Primary"
+           StartIcon="@Icons.Material.Filled.Visibility"
+           Class="mb-2">
+  Přejít na pohled návštěvníka
+</MudButton>
+
+<MudExpansionPanel Text="Identifikátor">
+  <MudDivider/>
+
+  <!-- Content -->
+  <MudCardContent Class="px-0">
+    @if (string.IsNullOrWhiteSpace(GlobalState.Identifier))
+    {
+      <MudAlert Severity="Severity.Info" Dense="true" Elevation="0" Class="mb-4">
+        <MudText Typo="Typo.body2">
+          Zadejte unikátní identifikátor, který bude součástí adresi vašich událostí.
+        </MudText>
+      </MudAlert>
+    }
+    else
+    {
+      <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="mb-2">
+        <MudText Typo="Typo.body2">Aktuální adresa událostí</MudText>
+        <MudTooltip
+          Text="Prostřednictví této adresy mohou vaši zákazníci přistupovat a vytvářet registarce. Zkopírujte a sdílejte adresu, např. na váš web"
+          ShowOnClick="true">
+          <MudIcon Icon="@Icons.Material.Filled.Info" Color="Color.Primary" Size="Size.Small"/>
+        </MudTooltip>
+      </MudStack>
+      <MudText Typo="Typo.body2" Class="mb-4" Style="word-wrap:break-word;">
+        <MudLink Href="@Constants.Routes.Reservation(GlobalState.Identifier)" Target="_blank">
+          @(NavigationManager.BaseUri.TrimEnd('/') + Constants.Routes.Reservation(GlobalState.Identifier))
+        </MudLink>
+      </MudText>
+    }
+
+    <MudStack>
+      <MudItem xs="12">
+        <MudTextField T="string"
+                      Label="Identifikátor"
+                      Value="Path"
+                      ValueChanged="OnPathChange"
+                      Variant="Variant.Outlined"
+                      FullWidth="true"
+                      Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Link"
+                      DebounceInterval="500"/>
+      </MudItem>
+
+      <MudStack Row="false" AlignItems="AlignItems.Center" Spacing="1">
+        @if ((IsPathTaken && GlobalState.Identifier != Path) || !IsPathValid)
+        {
+          <MudIcon Icon="@Icons.Material.Filled.Close" Color="Color.Error"/>
+        }
+        else
+        {
+          <MudIcon Icon="@Icons.Material.Filled.CheckCircleOutline" Color="Color.Success"/>
+        }
+
+        @if (IsPathTaken && GlobalState.Identifier == Path)
+        {
+          <MudText Typo="Typo.body2" Color="Color.Info" Class="ms-2">Toto je vaše aktuální adresa</MudText>
+        }
+        else if (IsPathTaken)
+        {
+          <MudText Typo="Typo.body2" Color="Color.Error" Class="ms-2">Tato adresa je již obsazená</MudText>
+        }
+        else if (!IsPathValid)
+        {
+          <MudText Typo="Typo.body2" Color="Color.Error" Class="ms-2">Adresa obsahuje nepovolené znaky</MudText>
+        }
+      </MudStack>
+    </MudStack>
+  </MudCardContent>
+
+  <MudDivider/>
+  <MudCardActions>
+    <MudButton OnClick="UpdatePath"
+               Variant="Variant.Filled"
+               Color="Color.Primary"
+               StartIcon="@Icons.Material.Filled.Save">
+      Aktualizovat
+    </MudButton>
+  </MudCardActions>
+</MudExpansionPanel>
+
+@code
+{
+  string Path { get; set; } = string.Empty;
+  bool IsPathFetching { get; set; }
+  bool IsPathTaken { get; set; }
+  bool IsPathValid { get; set; } = true;
+
+  protected override async Task OnInitializedAsync()
+  {
+    await LoadPath();
+  }
+
+  private async Task UpdatePath()
+  {
+    if (!Utils.IsPathValidate(Path))
+    {
+      IsPathValid = false;
+      return;
+    }
+
+    var response = await AccountService.UpdatePath(new PathRequest { Path = Path });
+    if (response is { IsSuccess: true, Data: not null })
+    {
+      GlobalState.Identifier = response.Data;
+      Snackbar.Add("Identifikátor a adresa byla úspěšně aktualizována.", Severity.Success);
+    }
+  }
+
+  private async Task OnPathChange(string newPath)
+  {
+    Path = newPath;
+    if (string.IsNullOrWhiteSpace(Path))
+    {
+      IsPathValid = false;
+      return;
+    }
+
+    IsPathFetching = true;
+    if (Utils.IsPathValidate(Path))
+    {
+      IsPathValid = true;
+      IsPathTaken = (await AccountService.IsPathTaken(new PathRequest { Path = Path })).Data;
+    }
+    else
+    {
+      IsPathValid = false;
+    }
+
+    IsPathFetching = false;
+  }
+
+  private async Task LoadPath()
+  {
+    var response = await AccountService.GetPath();
+    if (response.IsSuccess)
+    {
+      GlobalState.Identifier = Path = response.Data ?? string.Empty;
+    }
+  }
+}

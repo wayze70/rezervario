@@ -1,0 +1,205 @@
+@page "/ucet/zamestnanci"
+@using System.Net
+@using Microsoft.AspNetCore.Authorization
+@using Reservation.Shared.Authorization
+@using Reservation.Web.Client.Components
+@inject IEmployeeService EmployeeService
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<PageTitle>Správa pracovníků</PageTitle>
+@attribute [Authorize(Roles = nameof(Role.Admin))]
+
+<MudStack Class="mb-4" Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+  <MudText Typo="Typo.h5">
+    Seznam pracovníků
+  </MudText>
+  <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="@CreateNewEmployee">
+    Vytvořit nového pracovníka
+  </MudButton>
+</MudStack>
+
+@if (Employees is null)
+{
+  <MudText>Načítám pracovníky...</MudText>
+}
+else if (Employees.Count == 0)
+{
+  <MudText>Nejsou žádní pracovníci.</MudText>
+}
+else
+{
+  <MudTable Items="Employees">
+    <HeaderContent>
+      <MudTh>Jméno</MudTh>
+      <MudTh>Příjmení</MudTh>
+      <MudTh>Email</MudTh>
+      <MudTh>Pozice</MudTh>
+      <MudTh>Akce</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+      @if (_editingEmployeeId == @context.Id)
+      {
+        <MudTd DataLabel="Jméno">
+          <MudTextField T="string" Label="Jméno" @bind-Value="EditedEmployee.FirstName" Required="true"/>
+        </MudTd>
+        <MudTd DataLabel="Příjmení">
+          <MudTextField T="string" Label="Příjmení" @bind-Value="EditedEmployee.LastName" Required="true"/>
+        </MudTd>
+        <MudTd DataLabel="Email">
+          <EmailInput Variant="Variant.Text" Adornment="Adornment.None" @bind-Value="EditedEmployee.Email"/>
+        </MudTd>
+        <MudTd DataLabel="Pozice">
+          <MudSelect T="Role" Label="Pozice" @bind-Value="EditedEmployee.Role" Required="true">
+            @foreach (var role in Constants.RoleInfo.GetAll())
+            {
+              <MudSelectItem Value="@role.Key">@role.Value.DisplayName</MudSelectItem>
+            }
+          </MudSelect>
+        </MudTd>
+        <MudTd DataLabel="Akce">
+          <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="@(() =>
+                                                                                                 SaveEmployee(@context.Id))">
+            Uložit
+          </MudButton>
+          <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Small" OnClick="@CancelEdit">
+            Zrušit
+          </MudButton>
+        </MudTd>
+      }
+      else
+      {
+        <!-- Řádek v režimu zobrazení -->
+        <MudTd DataLabel="Jméno">@context.FirstName</MudTd>
+        <MudTd DataLabel="Příjmení">@context.LastName</MudTd>
+        <MudTd DataLabel="Email">@context.Email</MudTd>
+        <MudTd DataLabel="Pozice">
+          @(Constants.RoleInfo.GetAll().TryGetValue(context.Role, out var roleInfo)
+            ? roleInfo.DisplayName
+            : context.Role.ToString())
+        </MudTd>
+        <MudTd DataLabel="Akce">
+          <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small"
+                     OnClick="@(() => EditingEmployee(@context))">
+            Upravit
+          </MudButton>
+          <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small"
+                     OnClick="@(() => RemoveEmployee(@context))">
+            Smazat
+          </MudButton>
+        </MudTd>
+      }
+    </RowTemplate>
+  </MudTable>
+}
+
+@code {
+
+  List<EmployeeResponse>? Employees { get; set; }
+
+  int? _editingEmployeeId = null;
+
+  EmployeeUpdateRequest EditedEmployee { get; set; } = new EmployeeUpdateRequest();
+
+  protected override async Task OnInitializedAsync()
+  {
+    await LoadEmployees();
+  }
+
+  private async Task LoadEmployees()
+  {
+    var response = await EmployeeService.GetEmployees();
+    if (response is { IsSuccess: true, Data: not null })
+    {
+      Employees = response.Data;
+    }
+    else
+    {
+      Snackbar.Add("Nepodařilo se načíst zaměstnance.", Severity.Error);
+    }
+  }
+
+  private void EditingEmployee(EmployeeResponse employee)
+  {
+    _editingEmployeeId = employee.Id;
+    EditedEmployee = new EmployeeUpdateRequest
+    {
+      FirstName = employee.FirstName,
+      LastName = employee.LastName,
+      Email = employee.Email,
+      Role = employee.Role
+    };
+  }
+
+  private async Task SaveEmployee(int employeeId)
+  {
+    var response = await EmployeeService.UpdateEmployee(employeeId, EditedEmployee);
+    if (response.IsSuccess)
+    {
+      Snackbar.Add("Zaměstnanec byl úspěšně aktualizován.", Severity.Success);
+      var employeeToUpdate = Employees?.FirstOrDefault(e => e.Id == employeeId);
+      if (employeeToUpdate is not null)
+      {
+        employeeToUpdate.FirstName = EditedEmployee.FirstName;
+        employeeToUpdate.LastName = EditedEmployee.LastName;
+        employeeToUpdate.Email = EditedEmployee.Email;
+        employeeToUpdate.Role = EditedEmployee.Role;
+      }
+
+      _editingEmployeeId = null;
+    }
+    else if (response.StatusCode == HttpStatusCode.Conflict)
+    {
+      Snackbar.Add("Zaměstnanec s tímto emailem již existuje.", Severity.Error);
+    }
+    else if (response.StatusCode == HttpStatusCode.Locked)
+    {
+      Snackbar.Add("Nelze změnit roli poslednímumu administrátorovi.", Severity.Error);
+    }
+    else
+    {
+      Snackbar.Add("Nepodařilo se aktualizovat údaje zaměstnance.", Severity.Error);
+    }
+  }
+
+  private void CancelEdit()
+  {
+    _editingEmployeeId = null;
+    EditedEmployee = new EmployeeUpdateRequest();
+  }
+
+  private async Task RemoveEmployee(EmployeeResponse employee)
+  {
+    bool? result = await DialogService.ShowMessageBox(
+      "Potvrzení smazání",
+      $"Opravdu chcete smazat pracovníka {employee.FirstName} {employee.LastName}?",
+      yesText: "Ano",
+      noText: "Ne");
+
+    if (result != true) return;
+
+    var response = await EmployeeService.DeleteEmployee(employee.Id);
+    if (response.IsSuccess)
+    {
+      Snackbar.Add("Zaměstnanec byl smazán.", Severity.Success);
+      await LoadEmployees();
+    }
+    else
+    {
+      if (response.StatusCode == HttpStatusCode.Locked)
+      {
+        Snackbar.Add("Nemůžete smazat sami sebe.", Severity.Error);
+        return;
+      }
+
+      Snackbar.Add("Nepodařilo se smazat zaměstnance.", Severity.Error);
+    }
+  }
+
+  private void CreateNewEmployee()
+  {
+    NavigationManager.NavigateTo("/ucet/zamestnanci/vytvorit");
+  }
+
+}
