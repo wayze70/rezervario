@@ -18,6 +18,7 @@ public class DataContext : DbContext
     public DbSet<Customer> Customers { get; set; }
     public DbSet<Device> Devices { get; set; }
     public DbSet<User> Users { get; set; }
+    public DbSet<ReservationReminder> ReservationReminders { get; set; }
 
     public override int SaveChanges()
         => SaveChangesAsync().GetAwaiter().GetResult();
@@ -31,11 +32,11 @@ public class DataContext : DbContext
             .HasForeignKey(o => o.AccountId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        // Account -> Devices
-        modelBuilder.Entity<Account>()
-            .HasMany(a => a.Devices)
-            .WithOne(d => d.Account)
-            .HasForeignKey(d => d.AccountId)
+        // User -> Devices
+        modelBuilder.Entity<User>()
+            .HasMany(u => u.Devices)
+            .WithOne(d => d.User)
+            .HasForeignKey(d => d.UserId)
             .OnDelete(DeleteBehavior.Cascade);
 
         // Account -> Reservations

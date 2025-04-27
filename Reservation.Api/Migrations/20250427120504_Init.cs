@@ -28,6 +28,21 @@ namespace Reservation.Api.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "ReservationReminders",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    ReservationId = table.Column<int>(type: "integer", nullable: false),
+                    CustomerEmail = table.Column<string>(type: "character varying(320)", maxLength: 320, nullable: false),
+                    SentAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ReservationReminders", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Reservations",
                 columns: table => new
                 {
@@ -110,18 +125,11 @@ namespace Reservation.Api.Migrations
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     DeviceName = table.Column<string>(type: "character varying(1000)", maxLength: 1000, nullable: false),
                     RefreshToken = table.Column<string>(type: "character varying(1000)", maxLength: 1000, nullable: false),
-                    UserId = table.Column<int>(type: "integer", nullable: false),
-                    AccountId = table.Column<int>(type: "integer", nullable: false)
+                    UserId = table.Column<int>(type: "integer", nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Devices", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_Devices_Accounts_AccountId",
-                        column: x => x.AccountId,
-                        principalTable: "Accounts",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
                         name: "FK_Devices_Users_UserId",
                         column: x => x.UserId,
@@ -134,11 +142,6 @@ namespace Reservation.Api.Migrations
                 name: "IX_Customers_ReservationId",
                 table: "Customers",
                 column: "ReservationId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Devices_AccountId",
-                table: "Devices",
-                column: "AccountId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Devices_UserId",
@@ -164,6 +167,9 @@ namespace Reservation.Api.Migrations
 
             migrationBuilder.DropTable(
                 name: "Devices");
+
+            migrationBuilder.DropTable(
+                name: "ReservationReminders");
 
             migrationBuilder.DropTable(
                 name: "Reservations");
