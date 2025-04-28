@@ -1,11 +1,13 @@
 @page "/prihlaseni"
 @using System.Net
+@using Microsoft.AspNetCore.Components.Authorization
 @using Reservation.Shared.Common
 @using Reservation.Web.Client.Components
 @inject IAuthService AuthService
 @inject IAccountService AccountService
 @inject NavigationManager NavigationManager
 @inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthStateProvider
 
 <PageTitle>Přihlášení</PageTitle>
 
@@ -31,7 +33,7 @@
         <EditForm Model="emailModel" OnValidSubmit="CheckAccounts">
             <DataAnnotationsValidator/>
             <ValidationSummary/>
-            <EmailInput @bind-Value="emailModel.Email" Variant="Variant.Text" Adornment="Adornment.None" />
+            <EmailInput @bind-Value="emailModel.Email" Variant="Variant.Text" Adornment="Adornment.None"/>
             <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
                        Class="mt-4">
                 Pokračovat
@@ -77,9 +79,9 @@
             <DataAnnotationsValidator/>
             <ValidationSummary/>
 
-            <MudTextField T="string" Label="Email" Value="emailModel.Email" Disabled="true"/>
-            <MudTextField T="string" Label="Identifikátor" Value="currentIdentifier" Disabled="true" Class="mt-2"/>
-            <MudTextField T="string" Label="Heslo" InputType="InputType.Password" @bind-Value="loginModel.Password"
+            <MudTextField MaxLength="320" T="string" Label="Email" Value="emailModel.Email" Disabled="true"/>
+            <MudTextField MaxLength="150" T="string" Label="Identifikátor" Value="currentIdentifier" Disabled="true" Class="mt-2"/>
+            <MudTextField MaxLength="100" T="string" Label="Heslo" InputType="InputType.Password" @bind-Value="loginModel.Password"
                           Required="true" Class="mt-2"/>
 
             <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
@@ -102,8 +104,15 @@
                                         ?? accounts?[0].Identifier
                                         ?? string.Empty;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
+        if ((await AuthStateProvider.GetAuthenticationStateAsync()).User.Identity?.IsAuthenticated == true)
+        {
+            Snackbar.Add("Jste již přihlášeni. Pokud se chcete přihlásti k jiné účtu, neprve se odhlašte.",
+                Severity.Info);
+            NavigationManager.NavigateTo("/");
+        }
+
         loginModel = new LoginRequest();
     }
 
@@ -117,9 +126,9 @@
                 Snackbar.Add("Email není platný formát", Severity.Error);
                 return;
             }
-            
+
             emailModel.Email = email;
-            
+
             var response = await AccountService.GetAccountsByEmail(new AccountsByEmailRequest() { Email = emailModel.Email });
             IsFetching = false;
 

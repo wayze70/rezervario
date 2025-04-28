@@ -2,9 +2,11 @@
 @inject NavigationManager NavigationManager
 @inject ISnackbar Snackbar
 @using System.Net
+@using Microsoft.AspNetCore.Components.Authorization
 @using Reservation.Shared.Common
 @using Reservation.Web.Client.Components
 @inject IAccountService AccountService
+@inject AuthenticationStateProvider AuthStateProvider
 
 @page "/registrace"
 
@@ -15,13 +17,13 @@
         <MudText Typo="Typo.h5" Align="Align.Center" GutterBottom="true">
             Registrace
         </MudText>
-        <MudTextField T="string" Label="Jméno" @bind-Value="RegistrationUser.FirstName" Required="true"/>
-        <MudTextField T="string" Label="Příjmení" @bind-Value="RegistrationUser.LastName" Required="true"/>
+        <MudTextField MaxLength="250" T="string" Label="Jméno" @bind-Value="RegistrationUser.FirstName" Required="true"/>
+        <MudTextField MaxLength="250" T="string" Label="Příjmení" @bind-Value="RegistrationUser.LastName" Required="true"/>
         <EmailInput @bind-Value="RegistrationUser.Email" Variant="Variant.Text" Adornment="Adornment.None"/>
         <MudTextField T="string" Label="Heslo" InputType="InputType.Password" @bind-Value="RegistrationUser.Password"
-                      Required="true"/>
+                      Required="true" MaxLength="100"/>
         <MudStack Row="true" AlignItems="AlignItems.End">
-            <MudTextField T="string" Label="Identifikátor" Value="RegistrationUser.Identifier"
+            <MudTextField MaxLength="150" T="string" Label="Identifikátor" Value="RegistrationUser.Identifier"
                           ValueChanged="OnPathChange"
                           DebounceInterval="500" Required="true"/>
             <MudTooltip
@@ -81,6 +83,16 @@
     bool IsPathValid { get; set; } = true;
     bool IsPathFetching { get; set; } = false;
     bool IsSubmitting { get; set; } = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if ((await AuthStateProvider.GetAuthenticationStateAsync()).User.Identity?.IsAuthenticated == true)
+        {
+            Snackbar.Add("Jste již přihlášeni. Pokud se chcete přihlásti k jiné účtu, neprve se odhlašte.",
+                Severity.Info);
+            NavigationManager.NavigateTo("/");
+        }
+    }
 
     async Task OnSubmit()
     {
