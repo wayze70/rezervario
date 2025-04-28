@@ -5,6 +5,28 @@
 Aplikace běží online na adrese:  
 🔗 [https://www.rezervario.cz](https://www.rezervario.cz)
 
+# DEMO účty
+
+Pro snadnější vyzkoušení aplikace jsem připravil sadu demo účtů.  
+Každý účet simuluje podnikatele, který vlastní více společností zaměřených na různé služby:
+
+- **Kurzy programování**  
+  Zákazníci si mohou rezervovat kurz na adrese:  
+  [https://www.rezervario.cz/rezervace/kurz-programovani](https://www.rezervario.cz/rezervace/kurz-programovani)
+
+- **Skupinové silové tréninky v posilovně**  
+  Rezervace tréninků pro veřejnost je dostupná zde:  
+  [https://www.rezervario.cz/rezervace/skupinove-cviceni](https://www.rezervario.cz/rezervace/skupinove-cviceni)
+
+## Přihlášení do aplikace
+
+Pro přístup do demo účtů použijte následující přihlašovací údaje:
+
+- **E-mail**: `demo@rezervario.cz`
+- **Heslo**: `123456`*(heslo je možné mít u každé organizace nastavené jinak, pokud podnikatel spravuje více organizací)*
+
+Po přihlášení si jednoduše vyberte organizaci, ke které se chcete připojit, podle zaměření popsaného výše.
+
 ---
 
 ## 🚀 Lokální spuštění
