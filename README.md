@@ -18,7 +18,7 @@ Pro lepší představu si můžeme představit, že vytvořený účet patří p
   Tréninky jsou dostupné veřejnosti na adrese:  
   [https://www.rezervario.cz/rezervace/skupinove-cviceni](https://www.rezervario.cz/rezervace/skupinove-cviceni)
 
-- **Rezervace sporotní haly + turnaje**  
+- **Rezervace sportovní haly + turnaje**  
   Možnost rezervace sportovní haly jsou dostupné veřejnosti na adrese:  
   [https://www.rezervario.cz/rezervace/sportovni-hala](https://www.rezervario.cz/rezervace/sportovni-hala)
 
