@@ -49,7 +49,6 @@ public class ReservationReminderWorker : BackgroundService
                         r.StartTime < tomorrow)
             .ToListAsync(stoppingToken);
 
-
         foreach (var reservation in reservations)
         {
             var timeZoneInfo = TimeZoneInfo.FindSystemTimeZoneById(reservation.CustomTimeZoneId);
@@ -73,6 +72,7 @@ public class ReservationReminderWorker : BackgroundService
                         reservation.Title,
                         reservation.StartTime,
                         reservation.EndTime - reservation.StartTime,
+                        reservation.Id,
                         timeZoneInfo,
                         CultureInfo.GetCultureInfo("cs-CZ")
                     );
