@@ -8,10 +8,10 @@ Aplikace běží online na adrese:
 # DEMO Účty
 
 Pro snadnější vyzkoušení aplikace jsem připravil sadu demo účtů.  
-Pro lepší představu si můžeme představit, že vytvořený účet patří podnikateli (např. Josefu Novákovi), který vlastní více společností zaměřených na různé služby:
+Pro lepší představu si můžeme představit, že vytvořené účety patří podnikateli (např. Josefu Novákovi), který vlastní více společností zaměřených na různé služby:
 
 - **Kurzy programování**  
-  Zákazníci se mohou rezervovat na adrese:  
+  Veřejnost se může rezervovat na adrese:  
   [https://www.rezervario.cz/rezervace/kurz-programovani](https://www.rezervario.cz/rezervace/kurz-programovani)
 
 - **Skupinové silové tréninky v posilovně**  
