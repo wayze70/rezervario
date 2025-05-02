@@ -1,14 +1,18 @@
 @page "/ucet"
 @using Microsoft.AspNetCore.Authorization
+@using Reservation.Shared.Authorization
 @using Reservation.Web.Client.Components
+@using Microsoft.AspNetCore.Components.Authorization
 @inject IAuthService AuthService
 
 <PageTitle>Účet</PageTitle>
 @attribute [Authorize]
 
 <MudExpansionPanels>
-    <PathSection/>
-    <AccountInfoSection/>
+    <AuthorizeView Roles="@nameof(Role.Admin)">
+        <PathSection/>
+        <AccountInfoSection/>
+    </AuthorizeView>
     <UserProfileSection/>
     <PasswordSection/>
     <MudButton ButtonType="ButtonType.Button"
@@ -17,5 +21,7 @@
                Class="mt-4">
         Odhlásit se ze všech zařízení
     </MudButton>
-    <DeleteAccountSection/>
+    <AuthorizeView Roles="@nameof(Role.Admin)">
+        <DeleteAccountSection/>
+    </AuthorizeView>
 </MudExpansionPanels>
